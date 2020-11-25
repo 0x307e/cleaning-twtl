@@ -96,6 +96,6 @@ func main() {
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	log.Println(<-ch)
 
-	fmt.Println("Stopping Stream...")
+	yellow.Println("Stopping Stream...")
 	stream.Stop()
 }
