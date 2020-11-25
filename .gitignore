@@ -1,0 +1,12 @@
+
+.DS_Store
+._*
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+.DS_Store
+config.toml

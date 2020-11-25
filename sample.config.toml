@@ -1,0 +1,11 @@
+[TwitterService]
+APIKey = ""
+APISecretKey = ""
+AccessToken = ""
+AccessTokenSecret = ""
+
+[Twitter]
+BlockIfFollowing = false
+SearchWord = [
+  "",
+]
