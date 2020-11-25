@@ -3,8 +3,6 @@ package main
 import (
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dghubble/oauth1"
@@ -81,10 +79,4 @@ func main() {
 		cyan.Printf("[BLOCK] ")
 		log.Printf("%s [@%s] (%d)\n", tw.User.Name, tw.User.ScreenName, tw.User.ID)
 	}
-
-	ch := make(chan os.Signal)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-
-	yellow.Println("Stopping Stream...")
-	stream.Stop()
 }
