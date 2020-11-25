@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -58,17 +57,8 @@ func main() {
 		red.Printf("[ERROR] ")
 		log.Printf("Could not parse config file: %v\n", err)
 	}
+
 	yellow.Println("Starting Stream...")
-	demux := twitter.NewSwitchDemux()
-	demux.Tweet = func(tweet *twitter.Tweet) {
-		fmt.Println(tweet.Text)
-	}
-	demux.DM = func(dm *twitter.DirectMessage) {
-		fmt.Println(dm.SenderID)
-	}
-	demux.Event = func(event *twitter.Event) {
-		fmt.Printf("%#v\n", event)
-	}
 
 	filterParams := &twitter.StreamFilterParams{
 		Track:         conf.Twitter.SearchWords,
@@ -79,8 +69,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// go demux.HandleChan(stream.Messages)
-	// messages := <-stream.Messages
 	for m := range stream.Messages {
 		tw := m.(*twitter.Tweet)
 		if !tw.User.Following || conf.Twitter.BlockIfFollowing {
@@ -94,7 +82,6 @@ func main() {
 
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	log.Println(<-ch)
 
 	yellow.Println("Stopping Stream...")
 	stream.Stop()
