@@ -56,6 +56,7 @@ func main() {
 	if client, conf, err = loadConfigFrom(os.Args[1]); err != nil {
 		red.Printf("[ERROR] ")
 		log.Printf("Could not parse config file: %v\n", err)
+		os.Exit(1)
 	}
 
 	yellow.Println("Starting Stream...")
@@ -66,6 +67,7 @@ func main() {
 	}
 	stream, err := client.Streams.Filter(filterParams)
 	if err != nil {
+		red.Printf("[ERROR] ")
 		log.Fatal(err)
 	}
 
