@@ -8,6 +8,12 @@ import (
 	"github.com/dghubble/oauth1"
 	"github.com/fatih/color"
 	"github.com/kivikakk/go-twitter/twitter"
+	lediscfg "github.com/ledisdb/ledisdb/config"
+	"github.com/ledisdb/ledisdb/ledis"
+)
+
+var (
+	l *ledis.DB
 )
 
 type config struct {
@@ -43,6 +49,19 @@ func loadConfigFrom(configFile string) (client *twitter.Client, c *config, err e
 	return
 }
 
+func initLedis() {
+	cfg := lediscfg.NewConfigDefault()
+	cfg.DataDir = "data/ledis"
+	ldb, err := ledis.Open(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	l, err = ldb.Select(0)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
 	var (
 		client *twitter.Client
@@ -58,6 +77,7 @@ func main() {
 		log.Printf("Could not parse config file: %v\n", err)
 		os.Exit(1)
 	}
+	initLedis()
 
 	yellow.Println("Starting Stream...")
 
@@ -78,9 +98,13 @@ func main() {
 				client.Block.Create(&twitter.BlockCreateParams{
 					UserID: tw.User.ID,
 				})
+				if _, err := l.SAdd([]byte("blocked"), []byte(tw.User.IDStr)); err != nil {
+					red.Printf("[ERROR] ")
+					log.Fatal(err)
+				}
 			}
 		}
 		cyan.Printf("[BLOCK] ")
-		log.Printf("%-20s | @%-15s | %d\n", tw.User.Name, tw.User.ScreenName, tw.User.ID)
+		log.Printf("@%-15s | %-20d | %s\n", tw.User.ScreenName, tw.User.ID, tw.User.Name)
 	}
 }
