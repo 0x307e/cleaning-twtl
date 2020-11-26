@@ -21,6 +21,7 @@ type config struct {
 	Twitter struct {
 		BlockIfFollowing bool     `toml:"BlockIfFollowing"`
 		SearchWords      []string `toml:"SearchWords"`
+		MaxFollowers     int      `toml:"MaxFollowers"`
 	} `toml:"Twitter"`
 }
 
@@ -72,9 +73,11 @@ func main() {
 	for m := range stream.Messages {
 		tw := m.(*twitter.Tweet)
 		if !tw.User.Following || conf.Twitter.BlockIfFollowing {
-			client.Block.Create(&twitter.BlockCreateParams{
-				UserID: tw.User.ID,
-			})
+			if tw.User.FollowersCount < conf.Twitter.MaxFollowers {
+				client.Block.Create(&twitter.BlockCreateParams{
+					UserID: tw.User.ID,
+				})
+			}
 		}
 		cyan.Printf("[BLOCK] ")
 		log.Printf("%s [@%s] (%d)\n", tw.User.Name, tw.User.ScreenName, tw.User.ID)

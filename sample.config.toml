@@ -6,6 +6,7 @@ AccessTokenSecret = ""
 
 [Twitter]
 BlockIfFollowing = false
+MaxFollowers = 0
 SearchWord = [
   "",
 ]
