@@ -52,6 +52,7 @@ func main() {
 		red    *color.Color = color.New(color.FgRed)
 		err    error
 	)
+	log.SetFlags(0)
 	if client, conf, err = loadConfigFrom(os.Args[1]); err != nil {
 		red.Printf("[ERROR] ")
 		log.Printf("Could not parse config file: %v\n", err)
@@ -80,6 +81,6 @@ func main() {
 			}
 		}
 		cyan.Printf("[BLOCK] ")
-		log.Printf("%s [@%s] (%d)\n", tw.User.Name, tw.User.ScreenName, tw.User.ID)
+		log.Printf("%-20s | @%-15s | %d\n", tw.User.Name, tw.User.ScreenName, tw.User.ID)
 	}
 }
