@@ -14,3 +14,10 @@ SearchWords = [
 ExcludeUsers = [
   "",
 ]
+TweetTextFormat = """
+@TOS
+新規ブロック数: {% newBlockCount %}
+昨日からの増加: {% increaseCount %}
+
+{% nowDateTime %}
+"""

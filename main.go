@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dghubble/oauth1"
@@ -14,6 +16,7 @@ import (
 	"github.com/kivikakk/go-twitter/twitter"
 	lediscfg "github.com/ledisdb/ledisdb/config"
 	"github.com/ledisdb/ledisdb/ledis"
+	"github.com/robfig/cron"
 )
 
 var (
@@ -22,6 +25,7 @@ var (
 	cyan       *color.Color = color.New(color.FgCyan)
 	yellow     *color.Color = color.New(color.FgYellow)
 	red        *color.Color = color.New(color.FgRed)
+	location   *time.Location
 	client     *twitter.Client
 	addr       = flag.String("addr", ":1323", "TCP address to listen to")
 	configPath = flag.String("conf", "config.toml", "Config File Path")
@@ -42,6 +46,7 @@ type config struct {
 		ExcludeUsers     []string `toml:"ExcludeUsers"`
 		MaxFollowers     int      `toml:"MaxFollowers"`
 		MaxFFRatio       float64  `toml:"MaxFFRatio"`
+		TweetTextFormat  string   `toml:"TweetTextFormat"`
 	} `toml:"Twitter"`
 }
 
@@ -159,8 +164,49 @@ func blockWordHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, strings.Join(conf.Twitter.SearchWords, "\n"))
 }
 
+func blockCountTweet() {
+	var (
+		previousDayCountByte []byte
+		previousDayCount     int
+		count                int64
+		text                 string
+	)
+	if count, err = l.SCard([]byte("blocked")); err != nil {
+		log.Fatal(err)
+	}
+	if previousDayCountByte, err = l.Get([]byte("previousDay")); err != nil {
+		log.Fatal(err)
+	}
+	if string(previousDayCountByte) == "" {
+		previousDayCountByte = []byte("0")
+	}
+	if previousDayCount, err = strconv.Atoi(string(previousDayCountByte)); err != nil {
+		log.Fatal(err)
+	}
+	// Tweet text format
+	text = conf.Twitter.TweetTextFormat
+	text = strings.ReplaceAll(text, "{% newBlockCount %}", fmt.Sprintf("%d", count))
+	text = strings.ReplaceAll(text, "{% increaseCount %}", fmt.Sprintf("%d", int(count)-previousDayCount))
+	text = strings.ReplaceAll(text, "{% nowDateTime %}", time.Now().Format("2006/1/2 15:04:05"))
+	if _, _, err = client.Statuses.Update(text, nil); err != nil {
+		log.Fatal(err)
+	}
+	if err = l.Set([]byte("previousDay"), []byte(fmt.Sprintf("%d", count))); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
 	log.SetFlags(0)
+	if location, err = time.LoadLocation("Asia/Tokyo"); err != nil {
+		red.Printf("[ERROR] ")
+		log.Fatal(err)
+	}
+	if conf.Twitter.TweetTextFormat != "" {
+		c := cron.NewWithLocation(location)
+		c.AddFunc("0 0 12 * * *", cron.FuncJob(blockCountTweet))
+		c.Start()
+	}
 	initLedis()
 	http.HandleFunc("/blocked.csv", blockedHandler)
 	http.HandleFunc("/words.csv", blockWordHandler)
