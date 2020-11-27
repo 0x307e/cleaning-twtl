@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dghubble/oauth1"
@@ -107,8 +110,24 @@ func twitterBlocker() {
 	}
 }
 
+func csvHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		byteArrArr [][]byte
+		idArr      []string
+	)
+	if byteArrArr, err = l.SMembers([]byte("blocked")); err != nil {
+		log.Fatal(err)
+	}
+	for _, sbyte := range byteArrArr {
+		idArr = append(idArr, string(sbyte))
+	}
+	fmt.Fprintln(w, strings.Join(idArr, "\n"))
+}
+
 func main() {
 	log.SetFlags(0)
 	initLedis()
+	http.HandleFunc("/blocked.csv", csvHandler)
+	go http.ListenAndServe(":8080", nil)
 	twitterBlocker()
 }
