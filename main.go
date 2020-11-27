@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,13 +17,15 @@ import (
 )
 
 var (
-	l      *ledis.DB
-	conf   *config
-	cyan   *color.Color = color.New(color.FgCyan)
-	yellow *color.Color = color.New(color.FgYellow)
-	red    *color.Color = color.New(color.FgRed)
-	client *twitter.Client
-	err    error
+	l          *ledis.DB
+	conf       *config
+	cyan       *color.Color = color.New(color.FgCyan)
+	yellow     *color.Color = color.New(color.FgYellow)
+	red        *color.Color = color.New(color.FgRed)
+	client     *twitter.Client
+	addr       = flag.String("addr", ":1323", "TCP address to listen to")
+	configPath = flag.String("conf", "config.toml", "Config File Path")
+	err        error
 )
 
 type config struct {
@@ -59,7 +62,7 @@ func loadConfigFrom(configFile string) (client *twitter.Client, c *config, err e
 }
 
 func init() {
-	if client, conf, err = loadConfigFrom(os.Args[1]); err != nil {
+	if client, conf, err = loadConfigFrom(*configPath); err != nil {
 		red.Printf("[ERROR] ")
 		log.Printf("Could not parse config file: %v\n", err)
 		os.Exit(1)
@@ -130,6 +133,6 @@ func main() {
 	log.SetFlags(0)
 	initLedis()
 	http.HandleFunc("/blocked.csv", csvHandler)
-	go http.ListenAndServe(":8080", nil)
+	go http.ListenAndServe(*addr, nil)
 	twitterBlocker()
 }
