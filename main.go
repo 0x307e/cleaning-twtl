@@ -113,7 +113,7 @@ func twitterBlocker() {
 	}
 }
 
-func csvHandler(w http.ResponseWriter, r *http.Request) {
+func blockedHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		byteArrArr [][]byte
 		idArr      []string
@@ -129,10 +129,17 @@ func csvHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, strings.Join(idArr, "\n"))
 }
 
+func blockWordHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Disposition", "attachment; filename=words.csv")
+	w.Header().Set("Content-Type", "text/csv")
+	fmt.Fprintln(w, strings.Join(conf.Twitter.SearchWords, "\n"))
+}
+
 func main() {
 	log.SetFlags(0)
 	initLedis()
-	http.HandleFunc("/blocked.csv", csvHandler)
+	http.HandleFunc("/blocked.csv", blockedHandler)
+	http.HandleFunc("/words.csv", blockWordHandler)
 	go http.ListenAndServe(*addr, nil)
 	twitterBlocker()
 }
