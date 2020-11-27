@@ -39,7 +39,9 @@ type config struct {
 	Twitter struct {
 		BlockIfFollowing bool     `toml:"BlockIfFollowing"`
 		SearchWords      []string `toml:"SearchWords"`
+		ExcludeUsers     []string `toml:"ExcludeUsers"`
 		MaxFollowers     int      `toml:"MaxFollowers"`
+		MaxFFRatio       float64  `toml:"MaxFFRatio"`
 	} `toml:"Twitter"`
 }
 
@@ -67,6 +69,11 @@ func init() {
 		log.Printf("Could not parse config file: %v\n", err)
 		os.Exit(1)
 	}
+	eu := []string{}
+	for _, s := range conf.Twitter.ExcludeUsers {
+		eu = append(eu, strings.ToLower(strings.ReplaceAll(s, "@", "")))
+	}
+	conf.Twitter.ExcludeUsers = eu
 }
 
 func initLedis() {
@@ -80,6 +87,23 @@ func initLedis() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func needsToSkip(screenName string) bool {
+	screenName = strings.ToLower(screenName)
+	for _, n := range conf.Twitter.ExcludeUsers {
+		if n == screenName {
+			return true
+		}
+	}
+	return false
+}
+
+func ffRatio(follows, followers int) float64 {
+	if follows == 0 || followers == 0 {
+		return 0
+	}
+	return float64(followers) / float64(follows)
 }
 
 func twitterBlocker() {
@@ -97,8 +121,8 @@ func twitterBlocker() {
 
 	for m := range stream.Messages {
 		tw := m.(*twitter.Tweet)
-		if !tw.User.Following || conf.Twitter.BlockIfFollowing {
-			if tw.User.FollowersCount < conf.Twitter.MaxFollowers {
+		if !tw.User.Following || conf.Twitter.BlockIfFollowing || needsToSkip(tw.User.ScreenName) {
+			if tw.User.FollowersCount < conf.Twitter.MaxFollowers || ffRatio(tw.User.FriendsCount, tw.User.FollowersCount) < conf.Twitter.MaxFFRatio {
 				client.Block.Create(&twitter.BlockCreateParams{
 					UserID: tw.User.ID,
 				})
