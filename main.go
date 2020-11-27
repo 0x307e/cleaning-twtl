@@ -121,6 +121,8 @@ func csvHandler(w http.ResponseWriter, r *http.Request) {
 	for _, sbyte := range byteArrArr {
 		idArr = append(idArr, string(sbyte))
 	}
+	w.Header().Set("Content-Disposition", "attachment; filename=blocked.csv")
+	w.Header().Set("Content-Type", "text/csv")
 	fmt.Fprintln(w, strings.Join(idArr, "\n"))
 }
 
