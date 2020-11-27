@@ -13,7 +13,13 @@ import (
 )
 
 var (
-	l *ledis.DB
+	l      *ledis.DB
+	conf   *config
+	cyan   *color.Color = color.New(color.FgCyan)
+	yellow *color.Color = color.New(color.FgYellow)
+	red    *color.Color = color.New(color.FgRed)
+	client *twitter.Client
+	err    error
 )
 
 type config struct {
@@ -49,6 +55,14 @@ func loadConfigFrom(configFile string) (client *twitter.Client, c *config, err e
 	return
 }
 
+func init() {
+	if client, conf, err = loadConfigFrom(os.Args[1]); err != nil {
+		red.Printf("[ERROR] ")
+		log.Printf("Could not parse config file: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 func initLedis() {
 	cfg := lediscfg.NewConfigDefault()
 	cfg.DataDir = "data/ledis"
@@ -62,23 +76,7 @@ func initLedis() {
 	}
 }
 
-func main() {
-	var (
-		client *twitter.Client
-		conf   *config
-		cyan   *color.Color = color.New(color.FgCyan)
-		yellow *color.Color = color.New(color.FgYellow)
-		red    *color.Color = color.New(color.FgRed)
-		err    error
-	)
-	log.SetFlags(0)
-	if client, conf, err = loadConfigFrom(os.Args[1]); err != nil {
-		red.Printf("[ERROR] ")
-		log.Printf("Could not parse config file: %v\n", err)
-		os.Exit(1)
-	}
-	initLedis()
-
+func twitterBlocker() {
 	yellow.Println("Starting Stream...")
 
 	filterParams := &twitter.StreamFilterParams{
@@ -107,4 +105,10 @@ func main() {
 		cyan.Printf("[BLOCK] ")
 		log.Printf("@%-15s | %-20d | %s\n", tw.User.ScreenName, tw.User.ID, tw.User.Name)
 	}
+}
+
+func main() {
+	log.SetFlags(0)
+	initLedis()
+	twitterBlocker()
 }
