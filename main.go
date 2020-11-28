@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/cheggaaa/pb/v3"
 	"github.com/dghubble/oauth1"
 	"github.com/fatih/color"
 	"github.com/kivikakk/go-twitter/twitter"
@@ -27,10 +29,18 @@ var (
 	red        *color.Color = color.New(color.FgRed)
 	location   *time.Location
 	client     *twitter.Client
-	addr       = flag.String("addr", ":1323", "TCP address to listen to")
-	configPath = flag.String("conf", "config.toml", "Config File Path")
+	addr       *string
+	configPath *string
+	importPath *string
 	err        error
 )
+
+func init() {
+	addr = flag.String("addr", ":1323", "TCP address to listen to")
+	configPath = flag.String("conf", "config.toml", "Config File Path")
+	importPath = flag.String("import", "", "Import CSV Path")
+	flag.Parse()
+}
 
 type config struct {
 	TwitterService struct {
@@ -111,21 +121,73 @@ func ffRatio(follows, followers int) float64 {
 	return float64(followers) / float64(follows)
 }
 
+func block(id int64) {
+	if _, _, err = client.Block.Create(&twitter.BlockCreateParams{
+		UserID: id,
+	}); err != nil {
+		red.Printf("[ERROR] ")
+		log.Fatal(err)
+	}
+	if _, err := l.SAdd([]byte("blocked"), []byte(fmt.Sprintf("%d", id))); err != nil {
+		red.Printf("[ERROR] ")
+		log.Fatal(err)
+	}
+}
+
 func blockUser(tw *twitter.Tweet) {
 	if !tw.User.Following || conf.Twitter.BlockIfFollowing || needsToSkip(tw.User.ScreenName) {
 		if tw.User.FollowersCount < conf.Twitter.MaxFollowers || ffRatio(tw.User.FriendsCount, tw.User.FollowersCount) < conf.Twitter.MaxFFRatio {
-			client.Block.Create(&twitter.BlockCreateParams{
-				UserID: tw.User.ID,
-			})
-			if _, err := l.SAdd([]byte("blocked"), []byte(tw.User.IDStr)); err != nil {
-				red.Printf("[ERROR] ")
-				log.Fatal(err)
-			}
+			block(tw.User.ID)
 		}
 	}
 	cyan.Printf("[BLOCK] ")
 	log.Printf("@%-15s | %-20d | %s\n", tw.User.ScreenName, tw.User.ID, tw.User.Name)
 }
+
+func blockFromCSV() {
+	var (
+		file       *os.File
+		reader     *csv.Reader
+		line       [][]string
+		id         int
+		count      int
+		lineLength int
+		run        string
+	)
+	if file, err = os.Open(*importPath); err != nil {
+		red.Printf("[ERROR] ")
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	reader = csv.NewReader(file)
+
+	if line, err = reader.ReadAll(); err != nil {
+		red.Printf("[ERROR] ")
+		log.Fatal(err)
+	}
+
+	lineLength = len(line)
+
+	fmt.Printf("Will it take %d second to do? [y/N] ", lineLength)
+	fmt.Scanf("%s", &run)
+
+	if strings.ToLower(run) != "y" {
+		return
+	}
+	bar := pb.Simple.Start(count)
+	bar.SetMaxWidth(80)
+	for _, l := range line {
+		id, err = strconv.Atoi(l[0])
+		block(int64(id))
+		time.Sleep(1 * time.Second)
+		bar.Increment()
+		count++
+	}
+	cyan.Printf("[BLOCK] ")
+	log.Printf("%d users are blocked.\n", count)
+}
+
 func twitterBlocker() {
 	yellow.Println("Starting Stream...")
 
@@ -209,12 +271,16 @@ func main() {
 		red.Printf("[ERROR] ")
 		log.Fatal(err)
 	}
+	initLedis()
+	if *importPath != "" {
+		blockFromCSV()
+		return
+	}
 	if conf.Twitter.TweetTextFormat != "" {
 		c := cron.NewWithLocation(location)
 		c.AddFunc("0 0 12 * * *", cron.FuncJob(blockCountTweet))
 		c.Start()
 	}
-	initLedis()
 	http.HandleFunc("/blocked.csv", blockedHandler)
 	http.HandleFunc("/words.csv", blockWordHandler)
 	go http.ListenAndServe(*addr, nil)
