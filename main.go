@@ -111,6 +111,21 @@ func ffRatio(follows, followers int) float64 {
 	return float64(followers) / float64(follows)
 }
 
+func blockUser(tw *twitter.Tweet) {
+	if !tw.User.Following || conf.Twitter.BlockIfFollowing || needsToSkip(tw.User.ScreenName) {
+		if tw.User.FollowersCount < conf.Twitter.MaxFollowers || ffRatio(tw.User.FriendsCount, tw.User.FollowersCount) < conf.Twitter.MaxFFRatio {
+			client.Block.Create(&twitter.BlockCreateParams{
+				UserID: tw.User.ID,
+			})
+			if _, err := l.SAdd([]byte("blocked"), []byte(tw.User.IDStr)); err != nil {
+				red.Printf("[ERROR] ")
+				log.Fatal(err)
+			}
+		}
+	}
+	cyan.Printf("[BLOCK] ")
+	log.Printf("@%-15s | %-20d | %s\n", tw.User.ScreenName, tw.User.ID, tw.User.Name)
+}
 func twitterBlocker() {
 	yellow.Println("Starting Stream...")
 
@@ -125,20 +140,12 @@ func twitterBlocker() {
 	}
 
 	for m := range stream.Messages {
-		tw := m.(*twitter.Tweet)
-		if !tw.User.Following || conf.Twitter.BlockIfFollowing || needsToSkip(tw.User.ScreenName) {
-			if tw.User.FollowersCount < conf.Twitter.MaxFollowers || ffRatio(tw.User.FriendsCount, tw.User.FollowersCount) < conf.Twitter.MaxFFRatio {
-				client.Block.Create(&twitter.BlockCreateParams{
-					UserID: tw.User.ID,
-				})
-				if _, err := l.SAdd([]byte("blocked"), []byte(tw.User.IDStr)); err != nil {
-					red.Printf("[ERROR] ")
-					log.Fatal(err)
-				}
-			}
+		switch m.(type) {
+		case *twitter.Tweet:
+			blockUser(m.(*twitter.Tweet))
+		case *twitter.StreamLimit:
+			log.Fatal(m.(*twitter.StreamLimit).Track)
 		}
-		cyan.Printf("[BLOCK] ")
-		log.Printf("@%-15s | %-20d | %s\n", tw.User.ScreenName, tw.User.ID, tw.User.Name)
 	}
 }
 
