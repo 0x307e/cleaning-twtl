@@ -169,7 +169,7 @@ func blockFromCSV() {
 
 	lineLength = len(line)
 
-	fmt.Printf("Will it take %d second to do? [y/N] ", lineLength)
+	fmt.Printf("Will it take %d second to do. Run it? [y/N] ", lineLength)
 	fmt.Scanf("%s", &run)
 
 	if strings.ToLower(run) != "y" {
