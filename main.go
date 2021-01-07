@@ -122,16 +122,18 @@ func ffRatio(follows, followers int) float64 {
 }
 
 func block(id int64) {
-	if _, _, err = client.Block.Create(&twitter.BlockCreateParams{
-		UserID: id,
-	}); err != nil {
+	var stat int64
+	if stat, err = l.SIsMember([]byte("blocked"), []byte(fmt.Sprintf("%d", id))); err != nil {
 		red.Printf("[ERROR] ")
 		log.Fatal(err)
 	}
+	if stat != 0 {
+		client.Block.Create(&twitter.BlockCreateParams{UserID: id})
 	if _, err := l.SAdd([]byte("blocked"), []byte(fmt.Sprintf("%d", id))); err != nil {
 		red.Printf("[ERROR] ")
 		log.Fatal(err)
 	}
+}
 }
 
 func blockUser(tw *twitter.Tweet) {
