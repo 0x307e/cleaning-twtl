@@ -269,8 +269,7 @@ func blockCountTweet() {
 }
 
 func main() {
-	// log.SetFlags(0)
-	log.SetFlags(log.Lshortfile)
+	log.SetFlags(0)
 	if location, err = time.LoadLocation("Asia/Tokyo"); err != nil {
 		red.Printf("[ERROR] ")
 		log.Fatal(err)
