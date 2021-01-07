@@ -129,11 +129,11 @@ func block(id int64) {
 	}
 	if stat != 0 {
 		client.Block.Create(&twitter.BlockCreateParams{UserID: id})
-	if _, err := l.SAdd([]byte("blocked"), []byte(fmt.Sprintf("%d", id))); err != nil {
-		red.Printf("[ERROR] ")
-		log.Fatal(err)
+		if _, err := l.SAdd([]byte("blocked"), []byte(fmt.Sprintf("%d", id))); err != nil {
+			red.Printf("[ERROR] ")
+			log.Fatal(err)
+		}
 	}
-}
 }
 
 func blockUser(tw *twitter.Tweet) {
@@ -171,21 +171,22 @@ func blockFromCSV() {
 
 	lineLength = len(line)
 
-	fmt.Printf("Will it take %d second to do. Run it? [y/N] ", lineLength)
+	fmt.Printf("Will it take %d second to do. Run it? [y/N] ", lineLength/5)
 	fmt.Scanf("%s", &run)
 
 	if strings.ToLower(run) != "y" {
 		return
 	}
-	bar := pb.Simple.Start(count)
+	bar := pb.Simple.Start(lineLength)
 	bar.SetMaxWidth(80)
 	for _, l := range line {
-		id, err = strconv.Atoi(l[0])
+		id, _ = strconv.Atoi(l[0])
 		block(int64(id))
-		time.Sleep(1 * time.Second)
+		time.Sleep(20 * time.Millisecond)
 		bar.Increment()
 		count++
 	}
+	bar.Finish()
 	cyan.Printf("[BLOCK] ")
 	log.Printf("%d users are blocked.\n", count)
 }
@@ -268,7 +269,8 @@ func blockCountTweet() {
 }
 
 func main() {
-	log.SetFlags(0)
+	// log.SetFlags(0)
+	log.SetFlags(log.Lshortfile)
 	if location, err = time.LoadLocation("Asia/Tokyo"); err != nil {
 		red.Printf("[ERROR] ")
 		log.Fatal(err)
